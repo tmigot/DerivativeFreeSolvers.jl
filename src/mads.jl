@@ -43,7 +43,7 @@ function mads(nlp :: AbstractNLPModel;
       cx = cons(nlp, x)
       p += sum(max(zero(T), cx[i] - cu[i], cl[i] - cx[i])^2 for i = 1:nlp.meta.ncon)
     end
-    extreme && p > 0 ? T(Inf) : p
+    extreme && p > 0 ? T(Inf) : T(p)
   end
 
   function fandP(x)
