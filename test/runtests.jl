@@ -71,7 +71,7 @@ function tests()
         @test output.status == :max_eval
         output = mtd(nlp, max_iter=1)
         @test output.status == :max_iter
-        output = mtd(nlp, max_time=0.0)
+        output = mtd(nlp, max_time=0.0, max_eval=typemax(Int))
         @test output.status == :max_time
 
         nlp = ADNLPModel(x -> x[1]^2 + x[2]^2, ones(2))
