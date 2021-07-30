@@ -13,38 +13,39 @@ MADS is implemented following the description of
 
 But using random vectors instead of Halton vectors, as suggested by Francisco Sobral.
 """
-function mads(nlp :: AbstractNLPModel;
-              x :: AbstractVector=copy(nlp.meta.x0),
-              atol :: Real=√eps(eltype(x)),
-              rtol :: Real=√eps(eltype(x)),
-              max_eval :: Int=nlp.meta.nvar*200,
-              max_time :: Float64=30.0,
-              max_iter :: Int=-1,
-              stop_with_small_step :: Bool=false,
-              steptol :: Real=1e-8,
-              greedy :: Bool=false,
-              extreme :: Bool=false,
-              initial_stepsize :: Real=min(one(eltype(x)), minimum(nlp.meta.uvar - nlp.meta.lvar) / 10),
-              base_increase :: Real=eltype(x)(4),
-              base_decrease :: Real=eltype(x)(2),
-             )
-
+function mads(
+  nlp::AbstractNLPModel;
+  x::AbstractVector = copy(nlp.meta.x0),
+  atol::Real = √eps(eltype(x)),
+  rtol::Real = √eps(eltype(x)),
+  max_eval::Int = nlp.meta.nvar * 200,
+  max_time::Float64 = 30.0,
+  max_iter::Int = -1,
+  stop_with_small_step::Bool = false,
+  steptol::Real = 1e-8,
+  greedy::Bool = false,
+  extreme::Bool = false,
+  initial_stepsize::Real = min(one(eltype(x)), minimum(nlp.meta.uvar - nlp.meta.lvar) / 10),
+  base_increase::Real = eltype(x)(4),
+  base_decrease::Real = eltype(x)(2),
+)
   T = eltype(x)
   f(x) = obj(nlp, x)
 
   # TODO: Use a filter
-  P(x) = if unconstrained(nlp)
-    zero(T)
-  else
-    bl, bu, cl, cu = [getfield(nlp.meta, f) for f in [:lvar,:uvar,:lcon,:ucon]]
-    p = sum(max(zero(T), x[i] - bu[i], bl[i] - x[i])^2 for i = 1:nlp.meta.nvar)
-    extreme && p > 0 && return T(Inf)
-    if nlp.meta.ncon > 0
-      cx = cons(nlp, x)
-      p += sum(max(zero(T), cx[i] - cu[i], cl[i] - cx[i])^2 for i = 1:nlp.meta.ncon)
+  P(x) =
+    if unconstrained(nlp)
+      zero(T)
+    else
+      bl, bu, cl, cu = [getfield(nlp.meta, f) for f in [:lvar, :uvar, :lcon, :ucon]]
+      p = sum(max(zero(T), x[i] - bu[i], bl[i] - x[i])^2 for i = 1:(nlp.meta.nvar))
+      extreme && p > 0 && return T(Inf)
+      if nlp.meta.ncon > 0
+        cx = cons(nlp, x)
+        p += sum(max(zero(T), cx[i] - cu[i], cl[i] - cx[i])^2 for i = 1:(nlp.meta.ncon))
+      end
+      extreme && p > 0 ? T(Inf) : p
     end
-    extreme && p > 0 ? T(Inf) : p
-  end
 
   function fandP(x)
     local Px = P(x)
@@ -78,8 +79,11 @@ function mads(nlp :: AbstractNLPModel;
   # Hk eⱼ = qᵀq eⱼ - 2 qᵀeⱼ q = qᵀq eⱼ - 2qⱼ q
 
   # TODO: Use SolverCore log
-  @info log_header([:iter, :nf, :f, :P, :ϕ, :Δ, :μ, :status], [Int, Int, T, T, T, T, String],
-                   hdr_override=Dict(:f=>"f(x)", :P=>"P(x)", :ϕ=>"ϕ(x;μ)"))
+  @info log_header(
+    [:iter, :nf, :f, :P, :ϕ, :Δ, :μ, :status],
+    [Int, Int, T, T, T, T, String],
+    hdr_override = Dict(:f => "f(x)", :P => "P(x)", :ϕ => "ϕ(x;μ)"),
+  )
 
   @info log_row(Any[iter, neval_obj(nlp), fx, Px, ϕx, Δ, μ])
 
@@ -88,7 +92,7 @@ function mads(nlp :: AbstractNLPModel;
     status = "No decrease"
     besti = 0
     bestf, bestP, bestϕ = fx, Px, ϕx
-    for s = [1, -1], i = 1:n
+    for s in [1, -1], i = 1:n
       xt .= x .- (2s * Δ * q[i]) .* q
       xt[i] += dot(q, q) * s * Δ
       ft, Pt = fandP(xt)
@@ -145,6 +149,13 @@ function mads(nlp :: AbstractNLPModel;
     :unknown
   end
 
-  return GenericExecutionStats(status, nlp, solution=x, objective=fx, primal_feas=Px,
-                               iter=iter, elapsed_time=elapsed_time)
+  return GenericExecutionStats(
+    status,
+    nlp,
+    solution = x,
+    objective = fx,
+    primal_feas = Px,
+    iter = iter,
+    elapsed_time = elapsed_time,
+  )
 end
